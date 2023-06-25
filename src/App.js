@@ -65,6 +65,12 @@ function App() {
             Transaction Index: {parsedItem.transactionIndex} <br/>
             Address: {parsedItem.address} <br/>
             Data: {
+              // JSON.stringify(
+              //   parseData(parsedItem.data, topics[parsedItem.topics[0]]), 
+              //   (key, value) => 
+              //   typeof value === 'bigint'
+              //   ? value.toString()
+              //   : value, 2)
               JSON.stringify(parseData(parsedItem.data, topics[parsedItem.topics[0]]), null, 2)
             } <br/>
             Topic: {topics[parsedItem.topics[0]]} <br/>
