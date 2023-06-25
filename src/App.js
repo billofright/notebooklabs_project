@@ -1,67 +1,78 @@
 import React from 'react';
 import { useEffect, useState } from 'react';
-import { Network, Alchemy } from "alchemy-sdk"
+import { topics, parseData } from './topics'
+import { fetchData } from './apiClient';
+import './App.css';
+
+const contractAddress = '0x489ee077994B6658eAfA855C308275EAd8097C4A';
+const maxIncrement = 99999;
 
 function App() {
-  console.log(process.env.REACT_APP_API_KEY);
-
   const [eventList, setEventList] = useState([]);
-  const topics = [
-    '0xab4c77c74cd32c85f35416cf03e7ce9e2d4387f7b7f2c1f4bf53daaecf8ea72d', // BuyUSDG
-    '0xd732b7828fa6cee72c285eac756fc66a7477e3dc22e22e7c432f1c265d40b483', // SellUSDG
-    '0x0874b2d545cb271cdbda4e093020c452328b24af12382ed62c4d00f5c26709db', // Swap
-    '0x2fe68525253654c21998f35787a8d0f361905ef647c854092430ab65f2f15022', // IncreasePosition
-    '0x93d75d64d1f84fc6f430a64fc578bdd4c1e090e90ea2d51773e626d19de56d30', // DecreasePosition
-    '0x2e1f85a64a2f22cf2f0c42584e7c919ed4abe8d53675cff0f62bf1e95a1c676f', // LiquidatePosition
-    '0x25e8a331a7394a9f09862048843323b00bdbada258f524f5ce624a45bf00aabb', // UpdatePosition
-    '0x73af1d417d82c240fdb6d319b34ad884487c6bf2845d98980cc52ad9171cb455' // Close Position
-  ]
+  const [loading, setLoading] = useState(false);
+  const [value, setValue] = useState(0);
 
-  var latestBlock;
-  var fromBlock;
-
-  const contractAddress = '0x489ee077994B6658eAfA855C308275EAd8097C4A';
-  // Optional Config object, but defaults to demo api-key and eth-mainnet.
-  const settings = {
-    apiKey: process.env.REACT_APP_API_KEY,
-    network: Network.ARB_MAINNET, // Replace with your network.
+  const handleChange = (event) => {
+    const inputValue = event.target.value;
+    if(parseInt(inputValue) <= maxIncrement){
+      setValue(inputValue);
+    }
   };
 
-  const alchemy = new Alchemy(settings);
+  //calculate width of input box by starting width at 3rem and increasing it by 0.75rem per digit for numbers more than 3 digits
+  const inputWidth = `${3+(value.toString().length > 3 ? (value.toString().length-3)*0.75 : 0)}rem`; 
 
+  const getEvents = async () => {
+    setLoading(true);
 
-  const fetchData = async () => {
-
-    latestBlock = await alchemy.core.getBlockNumber();
-    fromBlock = latestBlock - 5000;
-
-    return alchemy.core
-      .getLogs({
-        address: contractAddress,
-        topics: [topics],
-        fromBlock: `0x${fromBlock.toString(16)}`,
-        toBlock: `0x${latestBlock.toString(16)}`
-      });
-  }
-
-  const getEvents = async event => {
-    const resp = await fetchData();
+    const resp = await fetchData(contractAddress, Object.keys(topics), value);
     console.log(resp);
     const formattedJsonArray = resp.map(json => JSON.stringify(json, null, 2));
     setEventList(formattedJsonArray);
+
+    setLoading(false);
   }
 
+  
+
   return (
-    <div>
-      <button onClick={getEvents}>
-        get events
-      </button>
-      <div>
-        {eventList.map((item, index) => (
-          <pre key={index}>{item}</pre>
-        ))}
+    <div className='event-container'>
+      <div className='selector-button-container'>
+        <div className='selector'>
+          <p>Get last</p>
+          <input
+            className='number-input'
+            type='number' 
+            value={value}
+            step={10} min={0} max={maxIncrement}
+            onChange={handleChange}
+            style={{width: inputWidth}} />
+          <p>events</p>
+        </div>
+        <div className='button-container'>
+          <button className='button' onClick={getEvents} disabled={loading}>
+            {loading ? 'Loading...' : `Go`}
+          </button>
+        </div>
       </div>
 
+      <div className='event-list'>
+        {eventList.map((item, index) => {
+          const parsedItem = JSON.parse(item);
+          return <pre className='event-element' key={index}>
+            Block Number: {parsedItem.blockNumber} <br/>
+            Block Hash: {parsedItem.blockHash} <br/>
+            Transaction Index: {parsedItem.transactionIndex} <br/>
+            Address: {parsedItem.address} <br/>
+            Data: {
+              JSON.stringify(parseData(parsedItem.data, topics[parsedItem.topics[0]]), null, 2)
+            } <br/>
+            Topic: {topics[parsedItem.topics[0]]} <br/>
+            Transaction Hash: {parsedItem.transactionHash} <br/>
+            Log Index: {parsedItem.logIndex} <br/>
+          </pre>
+        })}
+      </div>
     </div>
   );
 }
